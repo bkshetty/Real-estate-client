@@ -1,13 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 * {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
+@layer utilities {
+  .font-playfair {
+    font-family: 'Playfair Display', serif;
+  }
+  .font-outfit {
+    font-family: 'Outfit', sans-serif;
+  }
+}
+
 body {
   margin: 0;
-  background-color: #f1f5f9;
+  background-color: #020617; /* slate-950 */
+  color: #f8fafc; /* slate-50 */
 }
 
 #root {
@@ -16,8 +26,15 @@ body {
   display: flex;
 }
 
-/* Custom scrollbar */
+/* Fix for Select Dropdowns in Dark Theme */
+select option {
+  background-color: #1e293b; /* slate-800 */
+  color: #f8fafc; /* slate-50 */
+  padding: 10px;
+}
+
+/* Custom scrollbar - Dark Theme */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-track { background: #0f172a; /* slate-900 */ }
+::-webkit-scrollbar-thumb { background: #334155; /* slate-700 */ border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; /* slate-600 */ }

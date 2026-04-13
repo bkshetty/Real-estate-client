@@ -6,7 +6,7 @@ import {
   Building2, Users, FileText, Wrench, LayoutDashboard,
   Plus, Pencil, Trash2, MapPin, Maximize2, Home,
   CreditCard, AlertCircle, ChevronRight, DollarSign,
-  Phone, Mail, Calendar, Hash, ArrowUpDown, Search, Filter
+  Phone, Mail, Calendar, Hash, ArrowUpDown, Search, Filter, TrendingUp
 } from 'lucide-react';
 import Modal, { ConfirmModal } from './Modal';
 import LandingPage from './LandingPage';
@@ -87,11 +87,73 @@ function TextareaField({ label, ...props }) {
   );
 }
 
+function ReportTable({ data }) {
+  if (!Array.isArray(data) || data.length === 0) return (
+    <div className="h-full flex items-center justify-center text-slate-500 font-outfit text-sm italic">
+      No data returned for this report.
+    </div>
+  );
+  
+  // In case the data is still nested or weirdly formatted (like some SPs)
+  let displayData = data;
+  if (Array.isArray(data[0]) && data.length === 1) {
+     displayData = data[0]; 
+     if (displayData.length === 0) return <div className="h-full flex items-center justify-center text-slate-500 font-outfit text-sm">No records found.</div>;
+  }
+
+  const keys = Object.keys(displayData[0] || {});
+
+  return (
+    <div className="w-full max-w-full overflow-x-auto rounded-xl border border-white/5 bg-slate-900/40">
+      <table className="w-full text-sm text-left border-collapse">
+        <thead>
+          <tr className="bg-white/5 border-b border-white/10">
+            {keys.map((key, i) => (
+              <th key={i} className="px-6 py-4 font-semibold text-xs uppercase tracking-widest text-amber-400">
+                {key.replace(/_/g, ' ')}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/5">
+          {displayData.map((row, i) => (
+            <tr key={i} className="hover:bg-white/5 transition-colors">
+              {keys.map((key, j) => {
+                const val = row[key];
+                const isCurrency = key.toLowerCase().includes('revenue') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('total');
+                const isDate = key.toLowerCase().includes('date');
+                
+                let formattedVal = val;
+                if (val === null || val === undefined) {
+                  formattedVal = '-';
+                } else if (isCurrency && !isNaN(Number(val))) {
+                  formattedVal = `₹${Number(val).toLocaleString()}`;
+                } else if (isDate && String(val).includes('T')) {
+                  formattedVal = new Date(val).toLocaleDateString();
+                } else {
+                  formattedVal = String(val);
+                }
+
+                return (
+                  <td key={j} className={`px-6 py-4 whitespace-nowrap ${j === 0 ? 'font-playfair text-base text-white font-medium' : 'text-slate-300 font-light'}`}>
+                    {formattedVal}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 const navItems = [
   { id: 'properties', label: 'Properties',  icon: Building2 },
   { id: 'tenants',    label: 'Tenants',     icon: Users },
   { id: 'leases',     label: 'Leases',      icon: FileText },
   { id: 'operations', label: 'Operations',  icon: Wrench },
+  { id: 'reports',    label: 'Reports',     icon: TrendingUp },
 ];
 
 /* ═══════════════════════════════════════════════════════════ */
@@ -106,6 +168,10 @@ export default function App() {
   const [leases,      setLeases]      = useState([]);
   const [maintenance, setMaintenance] = useState([]);
   const [payments,    setPayments]    = useState([]);
+
+  /* ── report states ── */
+  const [reportData, setReportData] = useState([]);
+  const [reportTitle, setReportTitle] = useState("Select a report to run.");
 
   /* ── filter/sort states ── */
   const [searchQuery, setSearchQuery] = useState('');
@@ -171,14 +237,16 @@ export default function App() {
     const method = editPropId ? 'PUT' : 'POST';
     const url    = editPropId ? `${API}/properties/${editPropId}` : `${API}/properties`;
     fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(propForm) })
-      .then(() => {
+      .then(async res => {
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok || result.error) throw new Error(result.error || 'Database error occurred');
         fetchData();
         setPropForm({ name: '', location: '', size: '', type: 'Apartment' });
         setEditPropId(null);
         setShowPropModal(false);
         toast.success(editPropId ? 'Property updated!' : 'Property added!');
       })
-      .catch(() => toast.error('Something went wrong.'));
+      .catch((err) => toast.error(`Error: ${err.message}`, { duration: 5000 }));
   };
 
   /* ── submit: tenant ── */
@@ -187,28 +255,38 @@ export default function App() {
     const method = editTenantId ? 'PUT' : 'POST';
     const url    = editTenantId ? `${API}/tenants/${editTenantId}` : `${API}/tenants`;
     fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tenantForm) })
-      .then(() => {
+      .then(async res => {
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok || result.error) throw new Error(result.error || 'Database error occurred');
         fetchData();
         setTenantForm({ name: '', contact_number: '', email: '' });
         setEditTenantId(null);
         setShowTenantModal(false);
         toast.success(editTenantId ? 'Tenant updated!' : 'Tenant added!');
       })
-      .catch(() => toast.error('Something went wrong.'));
+      .catch((err) => toast.error(`Error: ${err.message}`, { duration: 5000 }));
   };
 
   /* ── generic POST ── */
   const genericPost = (endpoint, data, resetForm, closeModal, label) => {
     fetch(`${API}/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-      .then(() => { fetchData(); resetForm(); closeModal(false); toast.success(`${label} recorded!`); })
-      .catch(() => toast.error('Something went wrong.'));
+      .then(async res => {
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok || result.error) throw new Error(result.error || 'Database error occurred');
+        fetchData(); resetForm(); closeModal(false); toast.success(`${label} recorded!`);
+      })
+      .catch((err) => toast.error(`Error: ${err.message}`, { duration: 5000 }));
   };
 
   /* ── delete ── */
   const deleteItem = (endpoint, id) => {
     fetch(`${API}/${endpoint}/${id}`, { method: 'DELETE' })
-      .then(() => { fetchData(); toast.success('Deleted successfully.'); })
-      .catch(() => toast.error('Delete failed.'));
+      .then(async res => {
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok || result.error) throw new Error(result.error || 'Database error occurred');
+        fetchData(); toast.success('Deleted successfully.');
+      })
+      .catch((err) => toast.error(`Delete failed: ${err.message}`, { duration: 5000 }));
   };
 
   /* ── open edit prop ── */
@@ -223,6 +301,14 @@ export default function App() {
     setTenantForm({ name: t.name, contact_number: t.contact_number, email: t.email });
     setEditTenantId(t.tenant_id);
     setShowTenantModal(true);
+  };
+
+  /* ── reports ── */
+  const runReport = (endpoint, title) => {
+    fetch(`${API}/reports/${endpoint}`)
+      .then(r => r.json())
+      .then(data => { setReportData(data); setReportTitle(title); })
+      .catch(() => toast.error('Failed to run report.'));
   };
 
   const currentSection = navItems.find(n => n.id === tab);
@@ -599,6 +685,48 @@ export default function App() {
 
             </div>
           )}
+
+          {/* ─── REPORTS ─── */}
+          {tab === 'reports' && (
+            <div className="flex flex-col gap-6 h-full">
+              {/* Report Controls */}
+              <div className="bg-white/5 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-xl flex flex-col gap-4">
+                <h3 className="font-playfair text-xl text-white font-medium flex items-center gap-2">
+                  <TrendingUp className="text-amber-400" /> Complex Analytics & Reports
+                </h3>
+                <div className="flex flex-wrap gap-4">
+                  <button onClick={() => runReport('no-maintenance', 'Tenants with NO Maintenance History')} className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-slate-300 font-semibold tracking-wide rounded-xl border border-white/10 transition-colors uppercase text-xs">
+                    Trouble-Free Tenants
+                  </button>
+                  <button onClick={() => runReport('high-revenue', 'High Revenue Properties')} className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-slate-300 font-semibold tracking-wide rounded-xl border border-white/10 transition-colors uppercase text-xs">
+                    Top Performing Properties
+                  </button>
+                  <button onClick={() => runReport('tenant-history/1', 'Payment History for Tenant #1')} className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-slate-300 font-semibold tracking-wide rounded-xl border border-white/10 transition-colors uppercase text-xs">
+                    Tenant #1 History
+                  </button>
+                  
+                  {/* ⭐ NEW: BUTTON FOR 2ND SUBQUERY ADDED HERE */}
+                  <button onClick={() => runReport('property-lease-count', 'Property Lease Counts (2nd Subquery)')} className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-slate-300 font-semibold tracking-wide rounded-xl border border-white/10 transition-colors uppercase text-xs">
+                    Property Lease Counts
+                  </button>
+                </div>
+              </div>
+
+              {/* Report Output */}
+              <div className="flex-1 bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-6 flex flex-col min-h-[300px]">
+                <h4 className="font-playfair text-lg text-amber-400 mb-4 tracking-wide">{reportTitle}</h4>
+                <div className="flex-1 bg-slate-900/50 rounded-xl border border-white/5 p-4 overflow-auto">
+                  {reportData.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-slate-500 font-outfit text-sm">
+                      Select a report to generate the analytics data.
+                    </div>
+                  ) : (
+                    <ReportTable data={reportData} />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -641,7 +769,6 @@ export default function App() {
         </form>
       </Modal>
 
-      {/* Other modals follow same style */}
       <Modal isOpen={showLeaseModal} onClose={() => setShowLeaseModal(false)} title="Draft Agreement">
         <form onSubmit={(e) => { e.preventDefault(); genericPost('leases', leaseForm, () => setLeaseForm({ property_id: '', tenant_id: '', start_date: '', end_date: '' }), setShowLeaseModal, 'Lease'); }} className="space-y-5">
           <SelectField label="Estate" required value={leaseForm.property_id} onChange={e => setLeaseForm({ ...leaseForm, property_id: e.target.value })}>

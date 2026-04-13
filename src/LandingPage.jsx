@@ -137,7 +137,7 @@ export default function LandingPage({ onEnter }) {
           {/* Card 1 */}
           <div className="floating-card absolute top-10 right-0 w-[280px] p-5 bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl z-20" style={{ transform: 'rotateY(-15deg) rotateX(5deg)' }}>
             <div className="relative w-full h-32 mb-4 overflow-hidden">
-              <img src="https://images.unsplash.com/photo-1600607687920-4e2a043dc13b?auto=format&fit=crop&w=600&q=80" alt="Estate" className="w-full h-full object-cover" />
+              <img src="/luxury_estate.png" alt="Estate" className="w-full h-full object-cover" />
               <div className="absolute top-2 right-2 bg-amber-400 text-slate-900 text-[10px] font-bold px-2 py-1 uppercase tracking-wider">Premium</div>
             </div>
             <h3 className="font-playfair text-lg text-white mb-1">Palazzo Penthouse</h3>
